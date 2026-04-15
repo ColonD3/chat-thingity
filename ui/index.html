@@ -998,6 +998,7 @@
     const shellEl = document.querySelector('.shell');
 
     const STORAGE_KEY = 'local-codex-workspace-v3';
+    const OPENROUTER_KEY_STORAGE_KEY = 'local-codex-openrouter-key-v1';
     const HANDLE_DB = 'local-codex-root-handle-v1';
     const HANDLE_STORE = 'handles';
     const HANDLE_KEY = 'project-root';
@@ -1079,6 +1080,11 @@
         if (!state.config.imageProvider) state.config.imageProvider = 'pollinations';
         if (!state.config.imageModel) state.config.imageModel = 'flux';
         if (!state.config.localSdxlUrl) state.config.localSdxlUrl = 'http://127.0.0.1:7860';
+        if (!state.config.openRouterApiKey) {
+          try {
+            state.config.openRouterApiKey = normalizeApiKey(localStorage.getItem(OPENROUTER_KEY_STORAGE_KEY));
+          } catch {}
+        }
         if (!Array.isArray(state.projects)) state.projects = [];
         state.projects = state.projects.map((project) => {
           const slug = project.slug || (project.path ? project.path.split('/').pop() : slugify(project.name || 'project'));
@@ -1123,6 +1129,35 @@
 
     function saveState() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function normalizeApiKey(value) {
+      return String(value || '')
+        .trim()
+        .replace(/^Bearer\s+/i, '')
+        .replace(/^["']|["']$/g, '');
+    }
+
+    function setOpenRouterApiKey(value) {
+      const key = normalizeApiKey(value);
+      state.config.openRouterApiKey = key;
+      try {
+        localStorage.setItem(OPENROUTER_KEY_STORAGE_KEY, key);
+      } catch {}
+      saveState();
+    }
+
+    function getOpenRouterApiKey() {
+      const stateKey = normalizeApiKey(state.config.openRouterApiKey);
+      if (stateKey) return stateKey;
+      try {
+        const stored = normalizeApiKey(localStorage.getItem(OPENROUTER_KEY_STORAGE_KEY));
+        if (stored) {
+          state.config.openRouterApiKey = stored;
+          return stored;
+        }
+      } catch {}
+      return '';
     }
 
     function openHandleDB() {
@@ -1714,7 +1749,7 @@
       providerHelpEl.textContent = {
         ollama: `Ollama URL: ${state.config.ollamaBaseUrl}`,
         'gemini-free': state.config.geminiApiKey ? 'Gemini key configured.' : 'Gemini key missing. Use "Set Gemini Key".',
-        'openrouter-free': state.config.openRouterApiKey ? 'OpenRouter key configured.' : 'OpenRouter key missing. Use "Set OpenRouter Key".',
+        'openrouter-free': getOpenRouterApiKey() ? 'OpenRouter key configured.' : 'OpenRouter key missing. Use "Set OpenRouter Key".',
         'custom-openai': state.config.customBaseUrl
           ? `Custom endpoint: ${state.config.customBaseUrl}`
           : 'Custom base URL missing. Use "Set Custom Base URL".'
@@ -2121,7 +2156,8 @@
     }
 
     async function callOpenRouter(userText, signal) {
-      if (!state.config.openRouterApiKey) throw new Error('OpenRouter API key not set.');
+      const apiKey = getOpenRouterApiKey();
+      if (!apiKey) throw new Error('OpenRouter API key not set.');
       const selectedModel = (state.model || '').trim();
       const openRouterModel = selectedModel.includes('/') ? selectedModel : 'openrouter/auto';
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -2129,7 +2165,7 @@
         signal,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${state.config.openRouterApiKey}`
+          Authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: openRouterModel,
@@ -2200,6 +2236,8 @@
     async function streamOpenRouter(userText, onToken, signal) {
       const selectedModel = (state.model || '').trim();
       const openRouterModel = selectedModel.includes('/') ? selectedModel : 'openrouter/auto';
+      const apiKey = getOpenRouterApiKey();
+      if (!apiKey) throw new Error('OpenRouter API key not set.');
       const full = await streamOpenAISSE(
         'https://openrouter.ai/api/v1/chat/completions',
         {
@@ -2212,7 +2250,7 @@
         },
         {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${state.config.openRouterApiKey}`
+          Authorization: `Bearer ${apiKey}`
         },
         onToken,
         'OpenRouter',
@@ -2391,7 +2429,7 @@
           renderMessages();
           return;
         }
-        state.config.openRouterApiKey = key.trim();
+        setOpenRouterApiKey(key);
       }
 
       composerEl.value = '';
@@ -2667,8 +2705,7 @@
     setOpenRouterKeyBtn.addEventListener('click', () => {
       const key = prompt('OpenRouter API key:');
       if (!key) return;
-      state.config.openRouterApiKey = key.trim();
-      saveState();
+      setOpenRouterApiKey(key);
       render();
     });
 
