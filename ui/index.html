@@ -243,6 +243,19 @@
       color: var(--text);
     }
 
+    .mobile-menu-toggle {
+      display: none;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.05);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 13px;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+
     .workspace {
       min-width: 0;
       display: grid;
@@ -628,6 +641,81 @@
       .panel { width: 100%; justify-self: stretch; }
       .conversation { height: auto; min-height: calc(100vh - 160px); }
     }
+
+    @media (max-width: 820px) {
+      body { overflow-x: hidden; }
+      .shell { grid-template-columns: 1fr; }
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(88vw, 320px);
+        z-index: 40;
+        transform: translateX(-102%);
+        transition: transform 0.2s ease;
+        box-shadow: 18px 0 40px rgba(0,0,0,0.35);
+      }
+      .shell.sidebar-open .sidebar { transform: translateX(0); }
+      .shell.sidebar-open::after {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.48);
+        z-index: 30;
+      }
+      .main {
+        min-height: 100vh;
+      }
+      .topbar {
+        height: auto;
+        min-height: 56px;
+        padding: 10px 12px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+      }
+      .mobile-menu-toggle { display: inline-flex; }
+      .toolbar {
+        width: 100%;
+        gap: 8px;
+      }
+      .toolbar .pill,
+      .toolbar button.pill {
+        font-size: 11px;
+        padding: 6px 8px;
+      }
+      .workspace {
+        padding: 10px 10px 0;
+        gap: 10px;
+      }
+      .conversation-head {
+        padding: 14px 14px 10px;
+      }
+      .messages {
+        padding: 12px 14px 14px;
+        gap: 14px;
+      }
+      .composer {
+        margin: 0 10px 10px;
+        padding: 10px;
+        border-radius: 16px;
+      }
+      .composer textarea {
+        min-height: 96px;
+        max-height: 180px;
+      }
+      .message {
+        max-width: 100%;
+      }
+      .panel {
+        max-height: none;
+      }
+      .switch-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .mini-actions {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -672,6 +760,7 @@
           <span id="threadSubtitle">Documents</span>
         </div>
         <div class="toolbar">
+          <button class="mobile-menu-toggle" id="mobileMenuBtn" type="button">☰ Menu</button>
           <span class="pill" id="spacePill">Space: Build</span>
           <button class="pill" id="runBtn" type="button">Run</button>
           <button class="pill" id="commitBtn" type="button">Commit</button>
@@ -905,6 +994,8 @@
     const aiCommandBypassEl = document.getElementById('aiCommandBypass');
     const aiCommandModeLabelEl = document.getElementById('aiCommandModeLabel');
     const aiCommandModeHintEl = document.getElementById('aiCommandModeHint');
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const shellEl = document.querySelector('.shell');
 
     const STORAGE_KEY = 'local-codex-workspace-v3';
     const HANDLE_DB = 'local-codex-root-handle-v1';
@@ -1657,6 +1748,12 @@
       renderThreads();
       renderMessages();
       renderProjects();
+    }
+
+    function closeSidebarOnMobile() {
+      if (window.matchMedia('(max-width: 820px)').matches) {
+        shellEl.classList.remove('sidebar-open');
+      }
     }
 
     async function chooseRoot() {
@@ -2791,6 +2888,23 @@
       if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault();
         planAction();
+      }
+    });
+
+    mobileMenuBtn.addEventListener('click', () => {
+      shellEl.classList.toggle('sidebar-open');
+    });
+
+    document.addEventListener('click', (event) => {
+      if (!window.matchMedia('(max-width: 820px)').matches) return;
+      if (shellEl.classList.contains('sidebar-open') && !event.target.closest('.sidebar') && !event.target.closest('#mobileMenuBtn')) {
+        shellEl.classList.remove('sidebar-open');
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      if (!window.matchMedia('(max-width: 820px)').matches) {
+        shellEl.classList.remove('sidebar-open');
       }
     });
 
