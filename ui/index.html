@@ -2260,14 +2260,15 @@
     }
 
     async function testOpenRouterConnection() {
-      if (!state.config.openRouterApiKey) throw new Error('OpenRouter API key is missing.');
+      const apiKey = getOpenRouterApiKey();
+      if (!apiKey) throw new Error('OpenRouter API key is missing.');
       const selectedModel = (state.model || '').trim();
       const openRouterModel = selectedModel.includes('/') ? selectedModel : 'openrouter/auto';
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${state.config.openRouterApiKey}`
+          Authorization: `Bearer ${apiKey}`
         },
         body: JSON.stringify({
           model: openRouterModel,
@@ -2376,7 +2377,7 @@
       if (state.provider === 'gemini-free' && !state.config.geminiApiKey) {
         return 'Gemini API key is missing. Use "Set Gemini Key" in Provider Setup.';
       }
-      if (state.provider === 'openrouter-free' && !state.config.openRouterApiKey) {
+      if (state.provider === 'openrouter-free' && !getOpenRouterApiKey()) {
         return 'OpenRouter API key is missing. Use "Set OpenRouter Key" in Provider Setup.';
       }
       if (state.provider === 'custom-openai') {
@@ -2421,7 +2422,7 @@
         }
         state.config.geminiApiKey = key.trim();
       }
-      if (state.provider === 'openrouter-free' && !state.config.openRouterApiKey) {
+      if (state.provider === 'openrouter-free' && !getOpenRouterApiKey()) {
         const key = prompt('OpenRouter API key is required. Paste it now:');
         if (!key) {
           pushMessage('assistant', 'OpenRouter key not provided, so I could not send that message.', 'Setup required');
@@ -2534,9 +2535,9 @@
         const key = prompt('Gemini API key (from Google AI Studio):');
         if (key) state.config.geminiApiKey = key.trim();
       }
-      if (state.provider === 'openrouter-free' && !state.config.openRouterApiKey) {
+      if (state.provider === 'openrouter-free' && !getOpenRouterApiKey()) {
         const key = prompt('OpenRouter API key (from openrouter.ai/keys):');
-        if (key) state.config.openRouterApiKey = key.trim();
+        if (key) setOpenRouterApiKey(key);
       }
       saveState();
       render();
